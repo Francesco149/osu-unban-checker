@@ -74,11 +74,13 @@ func appMain(driver gxui.Driver) {
 
 	window.AddChild(mainlayout)
 
+	// larger font for the pop-up
 	bigfont, err := driver.CreateFont(gxfont.Default, 50)
 	if err != nil {
 		panic(err)
 	}
 
+	// unban pop-up
 	var popup gxui.Window
 
 	checkban := func() {
@@ -109,35 +111,39 @@ func appMain(driver gxui.Driver) {
 
 			// lol too lazy to parse html
 			i := strings.Index(string(body[:]), "'s profile")
-			if i != -1 {
-				status = "unbanned"
-				color = gxui.Green80
-
-				// lol too lazy to use regex
-				namestart := i
-				for ; body[namestart] != '>'; namestart-- {
-				}
-				player = string(body[namestart+1 : i])
-
-				// show pop-up if enabled
-				driver.Call(func() {
-					if checkbox.IsChecked() {
-						if popup != nil {
-							popup.Close()
-						}
-
-						popup = theme.CreateWindow(276, 90, "")
-						popup.SetPadding(math.Spacing{L: 20, T: 20, R: 20, B: 20})
-						popup.OnClose(func() { popup = nil })
-						unbanlabel := theme.CreateLabel()
-						unbanlabel.SetText("Unbanned!")
-						unbanlabel.SetFont(bigfont)
-						unbanlabel.SetColor(gxui.Green80)
-						popup.AddChild(unbanlabel)
-						popup.Focus()
-					}
-				})
+			if i == -1 {
+				break
 			}
+
+			status = "unbanned"
+			color = gxui.Green80
+
+			// lol too lazy to use regex
+			namestart := i
+			for ; body[namestart] != '>'; namestart-- {
+			}
+			player = string(body[namestart+1 : i])
+
+			// show pop-up if enabled
+			driver.Call(func() {
+				if !checkbox.IsChecked() {
+					return
+				}
+
+				if popup != nil {
+					popup.Close()
+				}
+
+				popup = theme.CreateWindow(276, 90, "")
+				popup.SetPadding(math.Spacing{L: 20, T: 20, R: 20, B: 20})
+				popup.OnClose(func() { popup = nil })
+				unbanlabel := theme.CreateLabel()
+				unbanlabel.SetText("Unbanned!")
+				unbanlabel.SetFont(bigfont)
+				unbanlabel.SetColor(gxui.Green80)
+				popup.AddChild(unbanlabel)
+				popup.Focus()
+			})
 
 			break
 		}
@@ -151,11 +157,13 @@ func appMain(driver gxui.Driver) {
 		})
 	}
 
-	button.OnClick(func(gxui.MouseEvent) { checkban() })
+	// bind check button
+	button.OnClick(func(gxui.MouseEvent) { go checkban() })
 
 	// this will notify the refresh thread that the textbox has changed
 	textchanged := make(chan bool)
 
+	// bind textbox changed event
 	textbox.OnTextChanged(func(edits []gxui.TextBoxEdit) {
 		textchanged <- false
 
@@ -193,7 +201,7 @@ func appMain(driver gxui.Driver) {
 					checked = false
 
 				case <-ticker.C: // refresh every 5 mins
-					checkban()
+					go checkban()
 					continue
 				}
 			}
