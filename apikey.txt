@@ -1,0 +1,6 @@
+get your api key here:
+https://osu.ppy.sh/p/api
+application name: osu! unban checker
+application url: https://github.com/Francesco149/osu-unban-checker
+
+and replace the contents of this file with the api key

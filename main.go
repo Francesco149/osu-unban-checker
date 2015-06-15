@@ -22,12 +22,41 @@ import (
 	"github.com/google/gxui/math"
 	"github.com/google/gxui/themes/dark"
 
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
+
+type OsuUser struct {
+	Username string `json:"username"`
+}
+
+type OsuError struct {
+	Error string `json:"error"`
+}
+
+func loadApiKey() (string, error) {
+	buf := bytes.NewBuffer(nil)
+
+	f, err := os.Open("apikey.txt")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(buf, f)
+	if err != nil {
+		return "", err
+	}
+
+	return string(buf.Bytes()), nil
+}
 
 func appMain(driver gxui.Driver) {
 	fmt.Println("Driver started")
@@ -83,7 +112,27 @@ func appMain(driver gxui.Driver) {
 	// unban pop-up
 	var popup gxui.Window
 
+	// checks for ban and updates the gui
 	checkban := func() {
+		apikey, err := loadApiKey()
+		if err != nil {
+			driver.Call(func() {
+				label.SetText(fmt.Sprintf("Failed to load api key (%v)", err))
+				label.SetColor(gxui.Yellow)
+			})
+			return
+		}
+		if len(apikey) == 0 {
+			driver.Call(func() {
+				label.SetText("Please enter your osu! api key in apikey.txt!")
+				label.SetColor(gxui.Yellow)
+			})
+			return
+		}
+
+		apikey = strings.Replace(apikey, "\r", "", -1)
+		apikey = strings.Replace(apikey, "\n", "", -1)
+
 		status := "still banned"
 		color := gxui.Red80
 		player := textbox.Text()
@@ -94,7 +143,7 @@ func appMain(driver gxui.Driver) {
 		})
 
 		for {
-			url := fmt.Sprintf("https://osu.ppy.sh/u/%s", player)
+			url := fmt.Sprintf("https://osu.ppy.sh/api/get_user?k=%s&u=%s", apikey, player)
 			fmt.Printf("GET %s\n", url)
 
 			resp, err := http.Get(url)
@@ -109,20 +158,37 @@ func appMain(driver gxui.Driver) {
 				continue
 			}
 
-			// lol too lazy to parse html
-			i := strings.Index(string(body[:]), "'s profile")
-			if i == -1 {
-				break
+			fmt.Println(string(body[:]))
+
+			var errorResp OsuError
+			err = json.Unmarshal(body[:], &errorResp)
+			if err == nil && len(errorResp.Error) > 0 {
+				driver.Call(func() {
+					label.SetText(errorResp.Error)
+					label.SetColor(gxui.Yellow)
+				})
+				return
+			}
+
+			var userResp []OsuUser
+			err = json.Unmarshal(body[:], &userResp)
+			if err != nil {
+				fmt.Println(err)
+				driver.Call(func() {
+					label.SetText("Failed to decode response.")
+					label.SetColor(gxui.Yellow)
+				})
+				return
+			}
+			if len(userResp) < 1 {
+				break // still banned
 			}
 
 			status = "unbanned"
 			color = gxui.Green80
+			player = userResp[0].Username
 
-			// lol too lazy to use regex
-			namestart := i
-			for ; body[namestart] != '>'; namestart-- {
-			}
-			player = string(body[namestart+1 : i])
+			// TODO: allow user to choose a specific user when multiple results are returned
 
 			// show pop-up if enabled
 			driver.Call(func() {
@@ -167,11 +233,13 @@ func appMain(driver gxui.Driver) {
 	textbox.OnTextChanged(func(edits []gxui.TextBoxEdit) {
 		textchanged <- false
 
-		// trim newlines when text is added
+		// strip newlines when text is added
 		// (disabling multiline still allows the user to paste multiline strings and fuck up the layout)
 		for _, edit := range edits {
 			if edit.Delta > 0 {
-				defer textbox.SetText(strings.Trim(textbox.Text(), "\r\n"))
+				defer textbox.SetText(
+					strings.Replace(strings.Replace(textbox.Text(), "\n", "", -1),
+						"\r", "", -1))
 				break
 			}
 		}
