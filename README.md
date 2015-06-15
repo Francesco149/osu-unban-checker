@@ -6,7 +6,7 @@ If you're on windows, you can grab the binaries from the releases section and ju
 
 If you're on linux, I haven't had the chance to fire up my linux box and build the binaries just yet so you'll have to take a look at "How to compile".
 
-First of all, head over to [https://osu.ppy.sh/p/api] and request and fill in the following information:
+First of all, head over to [https://osu.ppy.sh/p/api] and fill in the following information:
 
 	application name: osu! unban checker
 	application url: https://github.com/Francesco149/osu-unban-checker
