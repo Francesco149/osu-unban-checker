@@ -78,7 +78,7 @@ func appMain(driver gxui.Driver) {
 	layout.AddChild(label)
 
 	textbox := theme.CreateTextBox()
-	textbox.SetText("948713") // - Hakurei Reimu-
+	textbox.SetText("124493") // Cookiezi
 	layout.AddChild(textbox)
 
 	button := theme.CreateButton()
