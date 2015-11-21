@@ -21,6 +21,7 @@ import (
 	"github.com/google/gxui/gxfont"
 	"github.com/google/gxui/math"
 	"github.com/google/gxui/themes/dark"
+	"github.com/kardianos/osext"
 
 	"bytes"
 	"encoding/json"
@@ -29,6 +30,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -41,21 +43,27 @@ type OsuError struct {
 	Error string `json:"error"`
 }
 
-func loadApiKey() (string, error) {
+func loadApiKey() (res string, err error) {
 	buf := bytes.NewBuffer(nil)
 
-	f, err := os.Open("apikey.txt")
+	exeFolder, err := osext.ExecutableFolder()
 	if err != nil {
-		return "", err
+		return
+	}
+
+	f, err := os.Open(path.Join(exeFolder, "apikey.txt"))
+	if err != nil {
+		return
 	}
 	defer f.Close()
 
 	_, err = io.Copy(buf, f)
 	if err != nil {
-		return "", err
+		return
 	}
 
-	return string(buf.Bytes()), nil
+	res = string(buf.Bytes())
+	return
 }
 
 func appMain(driver gxui.Driver) {
